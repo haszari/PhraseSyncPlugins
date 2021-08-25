@@ -229,8 +229,10 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         else {
             // Determine if the last block straddled a phrase boundary.
             bool lastBlockNewPhrase = timeRangeStraddlesPhraseChange(lastBufferTimestamp, playheadTimeSamples);
+            // Or if the transport has looped back around start.
+            bool reloopNewPhrase = (lastBufferTimestamp > playheadTimeSamples);
             // If so, apply the channel param.
-            if ( lastBlockNewPhrase ) {
+            if (lastBlockNewPhrase || reloopNewPhrase) {
                 currentAllowedChannel = allowChannel;
             }
         }
