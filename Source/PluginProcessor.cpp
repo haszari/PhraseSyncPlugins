@@ -31,15 +31,29 @@ MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
          16,   // maximum value
          1)
     );
-    addParameter (phraseBeats = new juce::AudioParameterInt (
-         "phraseBeats", // parameterID
-         "Beats per phrase", // parameter name
-         4,   // minimum value
-         16,   // maximum value
-         8)
-    );
+    addParameter (phraseBeats = new juce::AudioParameterChoice (
+        "phraseBeats", // parameterID
+        "Phrase length", // parameter name
+        juce::StringArray( {"4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
+        1 // default index
+    ));
 }
 
+int MIDIClipVariationsAudioProcessor::getPhraseBeats ()
+{
+    int selected = phraseBeats->getIndex();
+    
+    // This looks like pow(2, index) but it's not.
+    switch (selected) {
+        case 0: return 4;
+        case 1: return 8;
+        case 2: return 16;
+        case 3: return 32;
+        case 4: return 64;
+    }
+    
+    return 4;
+}
 MIDIClipVariationsAudioProcessor::~MIDIClipVariationsAudioProcessor()
 {
 }
@@ -153,7 +167,7 @@ double MIDIClipVariationsAudioProcessor::samplesToBeats(juce::int64 timestamp) {
 }
 
 double MIDIClipVariationsAudioProcessor::beatsToPhrase(double beats) {    
-    return (beats / *phraseBeats);
+    return (beats / getPhraseBeats());
 }
 
 bool MIDIClipVariationsAudioProcessor::shouldPlayMidiMessage (juce::MidiMessage message, juce::int64 blockTime, juce::int64 eventTime)
