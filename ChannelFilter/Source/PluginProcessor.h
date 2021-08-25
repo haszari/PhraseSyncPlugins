@@ -60,9 +60,11 @@ private:
     double samplesToBeats (juce::int64 timestamp);
     double beatsToPhrase (double beats);
     bool shouldPlayMidiMessage (juce::MidiMessage message,juce::int64 blockTime, juce::int64 eventTime);
-    
+
+    int getPhraseBeats ();
+
     juce::AudioParameterInt* selectedChannel;
-    juce::AudioParameterInt* phraseBeats;
+    juce::AudioParameterChoice* phraseBeats;
 
     double tempoBpm;
     int currentAllowedChannel;

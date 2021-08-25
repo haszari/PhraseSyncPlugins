@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="otJdPT" name="MidiClipPhraseVariations" projectType="audioplug"
+<JUCERPROJECT id="otJdPT" name="ClipVariations-Channel" projectType="audioplug"
               useAppConfig="0" addUsingNamespaceToJuceHeader="0" displaySplashScreen="1"
               jucerFormatVersion="1" companyName="cartoonbeats" pluginFormats="buildVST3"
               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn">
-  <MAINGROUP id="vz9zXl" name="MidiClipPhraseVariations">
+  <MAINGROUP id="vz9zXl" name="ClipVariations-Channel">
     <GROUP id="{CEA7FFF1-94CC-BEF5-3A23-2DCF18BC2993}" name="Source">
       <FILE id="pLQXvr" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
