@@ -62,13 +62,15 @@ private:
     bool timeRangeStraddlesPhraseChange (juce::int64 time1, juce::int64 time2);
     bool shouldPlayMidiMessage (juce::MidiMessage message,juce::int64 blockTime, juce::int64 eventTime);
 
+    int getSemitonesPerVariation ();
     int getPhraseBeats ();
 
-    juce::AudioParameterInt* selectedChannel;
+    juce::AudioParameterInt* selectedVariation;
+    juce::AudioParameterChoice* notesPerVariation;
     juce::AudioParameterChoice* phraseBeats;
 
     double tempoBpm;
-    int currentAllowedChannel;
+    int currentVariation;
     juce::int64 lastBufferTimestamp;
 
     juce::MidiBuffer outputMidiBuffer;

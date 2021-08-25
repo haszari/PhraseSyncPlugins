@@ -23,20 +23,41 @@ MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
 {
     tempoBpm = 120.0;
     lastBufferTimestamp = 0;
-    currentAllowedChannel = 1;
-    addParameter (selectedChannel = new juce::AudioParameterInt (
-        "channel", // parameterID
-         "Channel", // parameter name
+    currentVariation = 0; // Zero based .. is that confusing, compared to channel plugin?
+    addParameter (selectedVariation = new juce::AudioParameterInt (
+        "variation", // parameterID
+         "Variation", // parameter name
          1,   // minimum value
-         16,   // maximum value
+         16,   // maximum value TBD
          1)
     );
+    addParameter (notesPerVariation = new juce::AudioParameterChoice (
+        "notesPerVariation", // parameterID
+        "Variation height", // parameter name
+        juce::StringArray( {"6 semitones / half octave", "1 octave", "2 octaves", "3 octaves"} ),
+        1 // default index
+    ));
     addParameter (phraseBeats = new juce::AudioParameterChoice (
         "phraseBeats", // parameterID
         "Phrase length", // parameter name
         juce::StringArray( {"4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
         1 // default index
     ));
+}
+
+int MIDIClipVariationsAudioProcessor::getSemitonesPerVariation ()
+{
+    int selected = notesPerVariation->getIndex();
+    
+    // This looks like pow(2, index) but it's not.
+    switch (selected) {
+        case 0: return 6;
+        case 1: return 12;
+        case 2: return 24;
+        case 3: return 36;
+    }
+    
+    return 12;
 }
 
 int MIDIClipVariationsAudioProcessor::getPhraseBeats ()
@@ -54,6 +75,7 @@ int MIDIClipVariationsAudioProcessor::getPhraseBeats ()
     
     return 4;
 }
+
 MIDIClipVariationsAudioProcessor::~MIDIClipVariationsAudioProcessor()
 {
 }
@@ -196,15 +218,21 @@ bool MIDIClipVariationsAudioProcessor::shouldPlayMidiMessage (juce::MidiMessage 
         return true;
     }
     
-    int channel = currentAllowedChannel;
+    int variation = currentVariation;
     
-    // Determine whether to use current channel or param channel for this event.
-    // If phrase boundary has occurred since start of block, use param.
+    // If phrase boundary has occurred since start of block, use the new selected variation.
     if ( timeRangeStraddlesPhraseChange(blockTime, eventTime) ) {
-        channel = *selectedChannel;
+        variation = *selectedVariation;
     }
 
-    return (message.getChannel() == channel);
+    int variationStartNote = variation * getSemitonesPerVariation();
+    int variationEndNote = variationStartNote + getSemitonesPerVariation();
+    
+    auto note = message.getNoteNumber();
+    
+    // Filter notes within the range.
+    bool noteInVariation = (note >= variationStartNote) && (note < variationEndNote);
+    return noteInVariation;
 }
 
 
@@ -212,7 +240,7 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 {
     outputMidiBuffer.clear();
   
-    const int allowChannel = *selectedChannel;
+    const int variation = *selectedVariation;
 
     juce::int64 playheadTimeSamples = 0;
 
@@ -224,7 +252,7 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         tempoBpm = playheadPosition.bpm;
     
         if (! playheadPosition.isPlaying) {
-            currentAllowedChannel = allowChannel;
+            currentVariation = variation;
         }
         else {
             // Determine if the last block straddled a phrase boundary.
@@ -233,12 +261,12 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
             bool reloopNewPhrase = (lastBufferTimestamp > playheadTimeSamples);
             // If so, apply the channel param.
             if (lastBlockNewPhrase || reloopNewPhrase) {
-                currentAllowedChannel = allowChannel;
+                currentVariation = variation;
             }
         }
     }
     else {
-        currentAllowedChannel = allowChannel;
+        currentVariation = variation;
     }
 
     for (auto m: midiMessages)
