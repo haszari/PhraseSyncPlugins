@@ -211,27 +211,40 @@ bool MIDIClipVariationsAudioProcessor::timeRangeStraddlesPhraseChange (juce::int
     return ( std::floor(aPhrase) < std::floor(bPhrase) );
 }
 
-bool MIDIClipVariationsAudioProcessor::shouldPlayMidiMessage (juce::MidiMessage message, juce::int64 blockTime, juce::int64 eventTime)
+bool MIDIClipVariationsAudioProcessor::processNote (juce::MidiMessage& message, juce::int64 blockTime, juce::int64 eventTime)
 {
-    if (! message.isNoteOn()) {
-        // pass anything except note-ons
+    if (! message.isNoteOnOrOff()) {
         return true;
     }
+
+    auto originalNote = message.getNoteNumber();
     
     int variation = currentVariation;
+    int variationHeight = getSemitonesPerVariation();
     
     // If phrase boundary has occurred since start of block, use the new selected variation.
     if ( timeRangeStraddlesPhraseChange(blockTime, eventTime) ) {
         variation = *selectedVariation;
     }
 
-    int variationStartNote = variation * getSemitonesPerVariation();
-    int variationEndNote = variationStartNote + getSemitonesPerVariation();
+    int variationStartNote = variation * variationHeight;
+
+    // Transpose all notes down into normalised range.
+    // Note 1: (pun intended!) this modifies the passed in note by reference.
+    // Note 2: this seems to start at the second-lowest octave in the DAWs I tried (Reaper, Bitwig).
+    // I had expected note zero would be C-2, bottom of the range.
+    message.setNoteNumber(originalNote - variationStartNote);
     
-    auto note = message.getNoteNumber();
+    // We may need special handling of note offs now - we need to track them and ensure they get played,
+    // and not play all of them, since they might clash with existing notes (after transpose).
+    // The bug is that note-offs near the end of the phrase may get lost – dangling notes.
+//    if (message.isNoteOff()) {
+//        // Pass all note-offs.
+//        return true;
+//    }
     
-    // Filter notes within the range.
-    bool noteInVariation = (note >= variationStartNote) && (note < variationEndNote);
+    // Filter notes within the (normalised) range.
+    bool noteInVariation = (message.getNoteNumber() >= 0) && (message.getNoteNumber() < (0 + variationHeight));
     return noteInVariation;
 }
 
@@ -274,7 +287,17 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         auto message = m.getMessage();
         auto timestamp = message.getTimeStamp();
         
-        if (this->shouldPlayMidiMessage(message, playheadTimeSamples, playheadTimeSamples + timestamp)) {
+        auto unprocessedMessage = message;
+        
+        // Process the current note.
+        // This determines if it is in the current variation's note range,
+        // AND transposes the note down into normal range (passed by ref).
+        if (this->processNote(message, playheadTimeSamples, playheadTimeSamples + timestamp)) {
+            if (message.isNoteOnOrOff()) {
+                std::cout << message.getNoteNumber() << " "
+                    << unprocessedMessage.getDescription() << " playing as "
+                    << message.getDescription() << std:: endl;
+            }
             outputMidiBuffer.addEvent(message, timestamp);
         }
 

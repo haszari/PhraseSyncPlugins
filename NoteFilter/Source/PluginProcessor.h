@@ -60,7 +60,7 @@ private:
     double samplesToBeats (juce::int64 timestamp);
     double beatsToPhrase (double beats);
     bool timeRangeStraddlesPhraseChange (juce::int64 time1, juce::int64 time2);
-    bool shouldPlayMidiMessage (juce::MidiMessage message,juce::int64 blockTime, juce::int64 eventTime);
+    bool processNote (juce::MidiMessage& message,juce::int64 blockTime, juce::int64 eventTime);
 
     int getSemitonesPerVariation ();
     int getPhraseBeats ();
