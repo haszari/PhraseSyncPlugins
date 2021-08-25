@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="otJdPT" name="MIDIClipVariations" projectType="audioplug"
+<JUCERPROJECT id="otJdPT" name="MidiClipPhraseVariations" projectType="audioplug"
               useAppConfig="0" addUsingNamespaceToJuceHeader="0" displaySplashScreen="1"
               jucerFormatVersion="1" companyName="cartoonbeats" pluginFormats="buildVST3"
               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn">
-  <MAINGROUP id="vz9zXl" name="MIDIClipVariations">
+  <MAINGROUP id="vz9zXl" name="MidiClipPhraseVariations">
     <GROUP id="{CEA7FFF1-94CC-BEF5-3A23-2DCF18BC2993}" name="Source">
       <FILE id="pLQXvr" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="TUwomw" name="PluginProcessor.h" compile="0" resource="0"
             file="Source/PluginProcessor.h"/>
-      <FILE id="nXkUam" name="PluginEditor.cpp" compile="1" resource="0"
-            file="Source/PluginEditor.cpp"/>
-      <FILE id="JtW3kO" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
     </GROUP>
   </MAINGROUP>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>

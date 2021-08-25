@@ -7,7 +7,6 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
 
 //==============================================================================
 MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
@@ -237,12 +236,12 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 //==============================================================================
 bool MIDIClipVariationsAudioProcessor::hasEditor() const
 {
-    return false; // (change this to false if you choose to not supply an editor)
+    return false;
 }
 
 juce::AudioProcessorEditor* MIDIClipVariationsAudioProcessor::createEditor()
 {
-    return new MIDIClipVariationsAudioProcessorEditor (*this);
+    return 0;
 }
 
 //==============================================================================
