@@ -170,6 +170,25 @@ double MIDIClipVariationsAudioProcessor::beatsToPhrase(double beats) {
     return (beats / getPhraseBeats());
 }
 
+bool MIDIClipVariationsAudioProcessor::timeRangeStraddlesPhraseChange (juce::int64 time1, juce::int64 time2) {
+    double a = samplesToBeats(time1);
+    double b = samplesToBeats(time2);
+
+    // Fudge factor alert!
+    // Sometimes we get a floating point rounding error.
+    // E.g. aPhrase = 2, bPhrase = 2.99998
+    // In this case the phrase is different and we need to catch it.
+    // We add 0.001 phrases because that's much smaller
+    // than the period we're concerned with, and larger
+    // than the rounding error.
+    double aPhrase = beatsToPhrase(a) + 0.001;
+    double bPhrase = beatsToPhrase(b) + 0.001;
+
+    // Determine whether to use current channel or param channel for this event.
+    // If phrase boundary has occurred since start of block, use param.
+    return ( std::floor(aPhrase) < std::floor(bPhrase) );
+}
+
 bool MIDIClipVariationsAudioProcessor::shouldPlayMidiMessage (juce::MidiMessage message, juce::int64 blockTime, juce::int64 eventTime)
 {
     if (! message.isNoteOn()) {
@@ -179,15 +198,9 @@ bool MIDIClipVariationsAudioProcessor::shouldPlayMidiMessage (juce::MidiMessage 
     
     int channel = currentAllowedChannel;
     
-    double blockStartBeats = samplesToBeats(blockTime);
-    double eventTimeBeats = samplesToBeats(eventTime);
-
-    double blockStartPhrase = beatsToPhrase(blockStartBeats) + 0.001;
-    double eventTimePhrase = beatsToPhrase(eventTimeBeats) + 0.001;
-
     // Determine whether to use current channel or param channel for this event.
     // If phrase boundary has occurred since start of block, use param.
-    if ( std::floor(blockStartPhrase) < std::floor(eventTimePhrase) ) {
+    if ( timeRangeStraddlesPhraseChange(blockTime, eventTime) ) {
         channel = *selectedChannel;
     }
 
@@ -215,14 +228,9 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         }
         else {
             // Determine if the last block straddled a phrase boundary.
+            bool lastBlockNewPhrase = timeRangeStraddlesPhraseChange(lastBufferTimestamp, playheadTimeSamples);
             // If so, apply the channel param.
-            double blockStartBeats = samplesToBeats(playheadTimeSamples);
-            double previousBeats = samplesToBeats(lastBufferTimestamp);
-
-            double blockStartPhrase = beatsToPhrase(blockStartBeats) + 0.001;
-            double prevPhrase = beatsToPhrase(previousBeats) + 0.001;
-
-            if ( std::floor(prevPhrase) < std::floor(blockStartPhrase) ) {
+            if ( lastBlockNewPhrase ) {
                 currentAllowedChannel = allowChannel;
             }
         }
