@@ -23,11 +23,14 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
 {
     tempoBpm = 120.0;
     lastBufferTimestamp = 0;
+    
+    // Note this plugin allows phrase length 1 beat for "real time" control.
+    // (The clip variation plugins start at 4 beats.)
     addParameter (phraseBeats = new juce::AudioParameterChoice (
         "phraseBeats", // parameterID
         "Phrase length", // parameter name
-        juce::StringArray( {"4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
-        1 // default index
+        juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
+        2 // default index
     ));
     
     currentValue = 0;
@@ -44,13 +47,13 @@ double MIDIControllerMotionAudioProcessor::getPhraseBeats ()
 {
     int selected = phraseBeats->getIndex();
     
-    // This looks like pow(2, index) but it's not.
     switch (selected) {
-        case 0: return 4;
-        case 1: return 8;
-        case 2: return 16;
-        case 3: return 32;
-        case 4: return 64;
+        case 0: return 1;
+        case 1: return 4;
+        case 2: return 8;
+        case 3: return 16;
+        case 4: return 32;
+        case 5: return 64;
     }
     
     return 4;
