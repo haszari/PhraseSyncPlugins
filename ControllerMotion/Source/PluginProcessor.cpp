@@ -56,7 +56,14 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         "First CC number", // parameter name
         1,
         127,
-        0
+        1
+    ));
+    addParameter (channelNumber = new juce::AudioParameterInt (
+        "channelNumber", // parameterID
+        "Channel", // parameter name
+        1,
+        16,
+        1
     ));
 }
 
@@ -258,7 +265,7 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
         }
         
         // Add event immediately (in future can align these with beats and/or phrase boundary).
-        int channel = 1;
+        int channel = *channelNumber;
         midiMessages.addEvent(
             juce::MidiMessage::controllerEvent(
                channel,

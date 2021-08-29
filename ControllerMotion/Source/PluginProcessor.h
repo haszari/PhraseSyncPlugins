@@ -71,6 +71,7 @@ private:
 
     juce::AudioParameterChoice* phraseBeats;
     juce::AudioParameterInt* firstCCNumber;
+    juce::AudioParameterInt* channelNumber;
 
     double tempoBpm;
     juce::int64 lastBufferTimestamp;
