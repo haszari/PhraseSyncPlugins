@@ -66,10 +66,11 @@ private:
     int getSemitonesPerVariation ();
     double getPhraseBeats ();
 
-    juce::AudioParameterChoice* phraseBeats;
-
     juce::AudioParameterFloat *destinationValue[CBR_CCMOTION_NUM_PARAMS];
     double currentValue[CBR_CCMOTION_NUM_PARAMS];
+
+    juce::AudioParameterChoice* phraseBeats;
+    juce::AudioParameterInt* firstCCNumber;
 
     double tempoBpm;
     juce::int64 lastBufferTimestamp;

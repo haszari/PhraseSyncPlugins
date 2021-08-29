@@ -32,6 +32,15 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
         2 // default index
     ));
+
+    addParameter (firstCCNumber = new juce::AudioParameterInt (
+        "firstCC", // parameterID
+        "First CC number", // parameter name
+        1,
+        127,
+        0
+    ));
+
     
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + 1;
@@ -39,7 +48,7 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         std::ostringstream paramIdentifier;
         paramIdentifier << "target" << controllerNumber;
         std::ostringstream paramName;
-        paramName << "Target CC " << controllerNumber;
+        paramName << "Target " << controllerNumber;
 
         currentValue[i] = 0;
         addParameter (destinationValue[i] = new juce::AudioParameterFloat (
@@ -240,7 +249,7 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
     }
     
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
-        int controllerNumber = i + 1;
+        int controllerNumber = i + *firstCCNumber;
 
         // Interpolate current => destination value.
         double increment = blockPhraseTime / phraseRemaining;
