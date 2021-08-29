@@ -10,6 +10,8 @@
 
 #include <JuceHeader.h>
 
+#define CBR_CCMOTION_NUM_PARAMS 4
+
 //==============================================================================
 /**
 */
@@ -65,10 +67,11 @@ private:
     double getPhraseBeats ();
 
     juce::AudioParameterChoice* phraseBeats;
-    juce::AudioParameterFloat* destinationValue;
+
+    juce::AudioParameterFloat *destinationValue[CBR_CCMOTION_NUM_PARAMS];
+    double currentValue[CBR_CCMOTION_NUM_PARAMS];
 
     double tempoBpm;
-    double currentValue;
     juce::int64 lastBufferTimestamp;
 
     juce::MidiBuffer outputMidiBuffer;

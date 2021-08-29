@@ -33,14 +33,23 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         2 // default index
     ));
     
-    currentValue = 0;
-    addParameter (destinationValue = new juce::AudioParameterFloat (
-        "destinationValue", // parameterID
-        "Destination", // parameter name
-        0.0,
-        1.0,
-        0.0
-    ));
+    for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
+        int controllerNumber = i + 1;
+
+        std::ostringstream paramIdentifier;
+        paramIdentifier << "target" << controllerNumber;
+        std::ostringstream paramName;
+        paramName << "Target CC " << controllerNumber;
+
+        currentValue[i] = 0;
+        addParameter (destinationValue[i] = new juce::AudioParameterFloat (
+            paramIdentifier.str(), // parameterID
+            paramName.str(), // parameter name
+            0.0,
+            1.0,
+            0.0
+        ));
+    }
 }
 
 double MIDIControllerMotionAudioProcessor::getPhraseBeats ()
@@ -223,31 +232,34 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
         blockTimeBeats
     );
     
-    // Interpolate current => destination value.
-    double increment = blockPhraseTime / phraseRemaining;
-    double outputValue = currentValue + increment * (*destinationValue - currentValue);
+    // We have jumped time or looped around.
+    // Skip doing anything until we have an increase in current time.
+    if (blockTimeSamples < 0) {
+        lastBufferTimestamp = playheadTimeSamples;
+        return;
+    }
     
-    std::cout
-        << " phrase=" << currentPhrasePosition
-        << " remain=" << phraseRemaining
-        << " beats=" << blockTimeBeats
-        << " %=" << increment
-        << " out=" << outputValue
-    << std::endl;
-    
-    // Add event immediately (in future can align these with beats and/or phrase boundary).
-    int channel = 1;
-    int controllerNumber = 1;
-    midiMessages.addEvent(
-        juce::MidiMessage::controllerEvent(
-           channel,
-           controllerNumber,
-           juce::MidiMessage::floatValueToMidiByte(outputValue)
-        ),
-        0
-    );
-    
-    currentValue = outputValue;
+    for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
+        int controllerNumber = i + 1;
+
+        // Interpolate current => destination value.
+        double increment = blockPhraseTime / phraseRemaining;
+        double distanceToTarget = destinationValue[i]->get() - currentValue[i];
+        double outputValue = currentValue[i] + increment * distanceToTarget;
+        
+        // Add event immediately (in future can align these with beats and/or phrase boundary).
+        int channel = 1;
+        midiMessages.addEvent(
+            juce::MidiMessage::controllerEvent(
+               channel,
+               controllerNumber,
+               juce::MidiMessage::floatValueToMidiByte(outputValue)
+            ),
+            0
+        );
+        
+        currentValue[i] = outputValue;
+    }
     
     lastBufferTimestamp = playheadTimeSamples;
 }
