@@ -33,15 +33,6 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         2 // default index
     ));
 
-    addParameter (firstCCNumber = new juce::AudioParameterInt (
-        "firstCC", // parameterID
-        "First CC number", // parameter name
-        1,
-        127,
-        0
-    ));
-
-    
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + 1;
 
@@ -59,6 +50,14 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
             0.0
         ));
     }
+
+    addParameter (firstCCNumber = new juce::AudioParameterInt (
+        "firstCC", // parameterID
+        "First CC number", // parameter name
+        1,
+        127,
+        0
+    ));
 }
 
 double MIDIControllerMotionAudioProcessor::getPhraseBeats ()
@@ -218,10 +217,12 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
   
     juce::int64 playheadTimeSamples = 0;
 
+    bool isPlaying = false;
     juce::AudioPlayHead::CurrentPositionInfo playheadPosition;
     juce::AudioPlayHead* playhead = AudioProcessor::getPlayHead();
     if (playhead) {
         playhead->getCurrentPosition(playheadPosition);
+        isPlaying = playheadPosition.isPlaying;
         playheadTimeSamples = playheadPosition.timeInSamples;
         tempoBpm = playheadPosition.bpm;
     }
@@ -241,20 +242,20 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
         blockTimeBeats
     );
     
-    // We have jumped time or looped around.
-    // Skip doing anything until we have an increase in current time.
-    if (blockTimeSamples < 0) {
-        lastBufferTimestamp = playheadTimeSamples;
-        return;
-    }
-    
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + *firstCCNumber;
 
         // Interpolate current => destination value.
         double increment = blockPhraseTime / phraseRemaining;
-        double distanceToTarget = destinationValue[i]->get() - currentValue[i];
+        double targetValue = destinationValue[i]->get();
+        double distanceToTarget = targetValue - currentValue[i];
         double outputValue = currentValue[i] + increment * distanceToTarget;
+        
+        // We have jumped time or looped around (or are paused).
+        // Jump to the target value ASAP.
+        if (!isPlaying || blockTimeSamples < 0) {
+            outputValue = targetValue;
+        }
         
         // Add event immediately (in future can align these with beats and/or phrase boundary).
         int channel = 1;
