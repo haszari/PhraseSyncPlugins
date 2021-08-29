@@ -23,7 +23,7 @@ Edit the notes for each variation, for example:
 
 Insert the appropriate plugin in the track, and use the channel/variation parameter to switch.
 
-The variation will only switch on phrase boundaries, so changes happen in sync. For example, you could switch from a "drop" beat pattern to a "break", or chorus to verse. There's another parameter for phrase length (4 - 64 beats).
+The variation will only switch on phrase boundaries, so changes happen in sync. For example, you could switch from a "drop" beat pattern to a "break", or chorus to verse. 
 
 ## Controller motion
 - `ControllerMotion.vst3` allows you to animate 4 MIDI CC values towards a target value. 
@@ -35,6 +35,8 @@ The plugin will output MIDI CCs that approach the target value at the end of the
 For example, you could map MIDI CC 1 to cutoff frequency for an arpeggiator pattern, and set phrase to 32 beats. Any changes you make to target value 1 will unfold over <32 beats, and always hit the target on the next phrase boundary.
 
 If you want to disable the animation, you can set phrase length to 1 beat for a very quick ramp.
+
+There's a parameter for the first CC number. Consecutive CC values will be used. This allows you to use multiple instances of the plugin to animate as many CCs as you want. You can also set the MIDI channel for the generated CCs.
 
 ## How to dev
 This project is built using [JUCE](https://juce.com). 
