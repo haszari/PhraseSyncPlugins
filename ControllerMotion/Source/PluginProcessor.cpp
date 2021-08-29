@@ -223,33 +223,31 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
         blockTimeBeats
     );
     
-    if (blockPhraseTime > 0) {
-        // Interpolate current => destination value.
-        double increment = blockPhraseTime / phraseRemaining;
-        double outputValue = currentValue + increment * (*destinationValue - currentValue);
-        
-        std::cout
-            << " phrase=" << currentPhrasePosition
-            << " remain=" << phraseRemaining
-            << " beats=" << blockTimeBeats
-            << " %=" << increment
-            << " out=" << outputValue
-        << std::endl;
-        
-        // Add event immediately (in future can align these with beats and/or phrase boundary).
-        int channel = 1;
-        int controllerNumber = 1;
-        midiMessages.addEvent(
-            juce::MidiMessage::controllerEvent(
-               channel,
-               controllerNumber,
-               juce::MidiMessage::floatValueToMidiByte(outputValue)
-            ),
-            0
-        );
-        
-        currentValue = outputValue;
-    }
+    // Interpolate current => destination value.
+    double increment = blockPhraseTime / phraseRemaining;
+    double outputValue = currentValue + increment * (*destinationValue - currentValue);
+    
+    std::cout
+        << " phrase=" << currentPhrasePosition
+        << " remain=" << phraseRemaining
+        << " beats=" << blockTimeBeats
+        << " %=" << increment
+        << " out=" << outputValue
+    << std::endl;
+    
+    // Add event immediately (in future can align these with beats and/or phrase boundary).
+    int channel = 1;
+    int controllerNumber = 1;
+    midiMessages.addEvent(
+        juce::MidiMessage::controllerEvent(
+           channel,
+           controllerNumber,
+           juce::MidiMessage::floatValueToMidiByte(outputValue)
+        ),
+        0
+    );
+    
+    currentValue = outputValue;
     
     lastBufferTimestamp = playheadTimeSamples;
 }
