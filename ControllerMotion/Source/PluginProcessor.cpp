@@ -42,6 +42,7 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
         paramName << "Target " << controllerNumber;
 
         currentValue[i] = 0;
+        lastOutputCC[i] = 0;
         addParameter (destinationValue[i] = new juce::AudioParameterFloat (
             paramIdentifier.str(), // parameterID
             paramName.str(), // parameter name
@@ -264,17 +265,24 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
             outputValue = targetValue;
         }
         
-        // Add event immediately (in future can align these with beats and/or phrase boundary).
-        int channel = *channelNumber;
-        midiMessages.addEvent(
-            juce::MidiMessage::controllerEvent(
-               channel,
-               controllerNumber,
-               juce::MidiMessage::floatValueToMidiByte(outputValue)
-            ),
-            0
-        );
+        int newCCValue = juce::MidiMessage::floatValueToMidiByte(outputValue);
+
+        // If the value has changed, output a CC event.
+        if ( lastOutputCC[i] != newCCValue ) {        
+            // Add event immediately (in future can align these with beats and/or phrase boundary).
+            int channel = *channelNumber;
+            midiMessages.addEvent(
+                juce::MidiMessage::controllerEvent(
+                   channel,
+                   controllerNumber,
+                   newCCValue
+                ),
+                0
+            );
+            lastOutputCC[i] = newCCValue;
+        }
         
+        // Update the floating-point value of the param.
         currentValue[i] = outputValue;
     }
     

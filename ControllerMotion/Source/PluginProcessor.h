@@ -68,6 +68,7 @@ private:
 
     juce::AudioParameterFloat *destinationValue[CBR_CCMOTION_NUM_PARAMS];
     double currentValue[CBR_CCMOTION_NUM_PARAMS];
+    int lastOutputCC[CBR_CCMOTION_NUM_PARAMS];
 
     juce::AudioParameterChoice* phraseBeats;
     juce::AudioParameterInt* firstCCNumber;
