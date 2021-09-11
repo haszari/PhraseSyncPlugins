@@ -11,38 +11,49 @@
 //==============================================================================
 MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
+    :
+    AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+        parameters (*this, nullptr, juce::Identifier (JucePlugin_Name),
+            {
+                std::make_unique<juce::AudioParameterInt> (
+                    "variation", // parameterID
+                    "Variation", // parameter name
+                    1,   // minimum value
+                    16,   // maximum value TBD
+                    1
+                ),
+
+                // Now allows phrase length 1 beat for consistency with ControllerMotion param.
+                std::make_unique<juce::AudioParameterChoice> (
+                    "phraseBeats", // parameterID
+                    "Phrase length", // parameter name
+                    juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
+                    2 // default index
+                ),
+            
+                std::make_unique<juce::AudioParameterChoice> (
+                    "notesPerVariation", // parameterID
+                    "Variation height", // parameter name
+                    juce::StringArray( {"6 semitones / half octave", "1 octave", "2 octaves", "3 octaves"} ),
+                    1 // default index
+                )
+            } )
 #endif
 {
     tempoBpm = 120.0;
     lastBufferTimestamp = 0;
     currentVariation = 0; // Zero based .. is that confusing, compared to channel plugin?
-    addParameter (selectedVariation = new juce::AudioParameterInt (
-        "variation", // parameterID
-         "Variation", // parameter name
-         1,   // minimum value
-         16,   // maximum value TBD
-         1)
-    );
-    addParameter (notesPerVariation = new juce::AudioParameterChoice (
-        "notesPerVariation", // parameterID
-        "Variation height", // parameter name
-        juce::StringArray( {"6 semitones / half octave", "1 octave", "2 octaves", "3 octaves"} ),
-        1 // default index
-    ));
-    addParameter (phraseBeats = new juce::AudioParameterChoice (
-        "phraseBeats", // parameterID
-        "Phrase length", // parameter name
-        juce::StringArray( {"4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
-        1 // default index
-    ));
+    
+    selectedVariation = (juce::AudioParameterInt*)parameters.getParameter("variation");
+    phraseBeats = (juce::AudioParameterChoice*)parameters.getParameter("phraseBeats");
+    notesPerVariation = (juce::AudioParameterChoice*)parameters.getParameter("notesPerVariation");
 }
 
 int MIDIClipVariationsAudioProcessor::getSemitonesPerVariation ()
@@ -322,15 +333,18 @@ juce::AudioProcessorEditor* MIDIClipVariationsAudioProcessor::createEditor()
 //==============================================================================
 void MIDIClipVariationsAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    auto state = parameters.copyState();
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    copyXmlToBinary (*xml, destData);
 }
 
 void MIDIClipVariationsAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+
+    if (xmlState.get() != nullptr)
+        if (xmlState->hasTagName (parameters.state.getType()))
+            parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
 }
 
 //==============================================================================
