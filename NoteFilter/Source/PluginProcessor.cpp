@@ -60,7 +60,6 @@ int MIDIClipVariationsAudioProcessor::getSemitonesPerVariation ()
 {
     int selected = notesPerVariation->getIndex();
     
-    // This looks like pow(2, index) but it's not.
     switch (selected) {
         case 0: return 6;
         case 1: return 12;
@@ -75,15 +74,15 @@ int MIDIClipVariationsAudioProcessor::getPhraseBeats ()
 {
     int selected = phraseBeats->getIndex();
     
-    // This looks like pow(2, index) but it's not.
     switch (selected) {
-        case 0: return 4;
-        case 1: return 8;
-        case 2: return 16;
-        case 3: return 32;
-        case 4: return 64;
+        case 0: return 1;
+        case 1: return 4;
+        case 2: return 8;
+        case 3: return 16;
+        case 4: return 32;
+        case 5: return 64;
     }
-    
+
     return 4;
 }
 
