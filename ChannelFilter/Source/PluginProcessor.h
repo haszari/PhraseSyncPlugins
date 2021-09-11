@@ -64,6 +64,8 @@ private:
 
     int getPhraseBeats ();
 
+    juce::AudioProcessorValueTreeState parameters;
+
     juce::AudioParameterInt* selectedChannel;
     juce::AudioParameterChoice* phraseBeats;
 
