@@ -65,6 +65,8 @@ private:
     int getSemitonesPerVariation ();
     int getPhraseBeats ();
 
+    juce::AudioProcessorValueTreeState parameters;
+
     juce::AudioParameterInt* selectedVariation;
     juce::AudioParameterChoice* notesPerVariation;
     juce::AudioParameterChoice* phraseBeats;

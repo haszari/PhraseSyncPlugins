@@ -11,47 +11,56 @@
 //==============================================================================
 MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
+    :
+    AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+        parameters (*this, nullptr, juce::Identifier (JucePlugin_Name),
+            {
+                std::make_unique<juce::AudioParameterInt> (
+                    "channel", // parameterID
+                    "Channel", // parameter name
+                    1,   // minimum value
+                    16,   // maximum value
+                    1
+                ),
+
+                // Now allows phrase length 1 beat for consistency with ControllerMotion param.
+                std::make_unique<juce::AudioParameterChoice> (
+                    "phraseBeats", // parameterID
+                    "Phrase length", // parameter name
+                    juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
+                    2 // default index
+                )
+            } )
 #endif
 {
     tempoBpm = 120.0;
     lastBufferTimestamp = 0;
     currentAllowedChannel = 1;
-    addParameter (selectedChannel = new juce::AudioParameterInt (
-        "channel", // parameterID
-         "Channel", // parameter name
-         1,   // minimum value
-         16,   // maximum value
-         1)
-    );
-    addParameter (phraseBeats = new juce::AudioParameterChoice (
-        "phraseBeats", // parameterID
-        "Phrase length", // parameter name
-        juce::StringArray( {"4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
-        1 // default index
-    ));
+    
+    selectedChannel = (juce::AudioParameterInt*)parameters.getParameter("channel");
+    phraseBeats = (juce::AudioParameterChoice*)parameters.getParameter("phraseBeats");
 }
 
 int MIDIClipVariationsAudioProcessor::getPhraseBeats ()
 {
     int selected = phraseBeats->getIndex();
     
-    // This looks like pow(2, index) but it's not.
     switch (selected) {
-        case 0: return 4;
-        case 1: return 8;
-        case 2: return 16;
-        case 3: return 32;
-        case 4: return 64;
+        case 0: return 1;
+        case 1: return 4;
+        case 2: return 8;
+        case 3: return 16;
+        case 4: return 32;
+        case 5: return 64;
     }
-    
+
     return 4;
 }
 MIDIClipVariationsAudioProcessor::~MIDIClipVariationsAudioProcessor()
@@ -271,15 +280,18 @@ juce::AudioProcessorEditor* MIDIClipVariationsAudioProcessor::createEditor()
 //==============================================================================
 void MIDIClipVariationsAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    auto state = parameters.copyState();
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    copyXmlToBinary (*xml, destData);
 }
 
 void MIDIClipVariationsAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+
+    if (xmlState.get() != nullptr)
+        if (xmlState->hasTagName (parameters.state.getType()))
+            parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
 }
 
 //==============================================================================

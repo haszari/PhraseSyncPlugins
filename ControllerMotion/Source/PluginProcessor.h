@@ -10,6 +10,8 @@
 
 #include <JuceHeader.h>
 
+// These parameters are now hard coded in the constructor initialiser list.
+// If this constant is changed, need to add/remove `target` params accordingly.
 #define CBR_CCMOTION_NUM_PARAMS 4
 
 //==============================================================================
@@ -70,6 +72,8 @@ private:
     double currentValue[CBR_CCMOTION_NUM_PARAMS];
     int lastOutputCC[CBR_CCMOTION_NUM_PARAMS];
 
+    juce::AudioProcessorValueTreeState parameters;
+    
     juce::AudioParameterChoice* phraseBeats;
     juce::AudioParameterInt* firstCCNumber;
     juce::AudioParameterInt* channelNumber;
