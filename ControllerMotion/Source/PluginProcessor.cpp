@@ -11,61 +11,94 @@
 //==============================================================================
 MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
+    :
+    AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+        parameters (*this, nullptr, juce::Identifier (JucePlugin_Name),
+            {
+                // Note this plugin allows phrase length 1 beat for "real time" control.
+                // (The clip variation plugins start at 4 beats.)
+                std::make_unique<juce::AudioParameterChoice> (
+                    "phraseBeats", // parameterID
+                    "Phrase length", // parameter name
+                    juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
+                    2 // default index
+                ),
+            
+            // Moving CC parameters. The number of these params should match CBR_CCMOTION_NUM_PARAMS constant.
+                std::make_unique<juce::AudioParameterFloat> (
+                    "target1", // parameterID
+                    "Target 1", // parameter name
+                    0.0, 1.0, 0.0
+                ),
+                std::make_unique<juce::AudioParameterFloat> (
+                    "target2", // parameterID
+                    "Target 2", // parameter name
+                    0.0, 1.0, 0.0
+                ),
+                std::make_unique<juce::AudioParameterFloat> (
+                    "target3", // parameterID
+                    "Target 3", // parameter name
+                    0.0, 1.0, 0.0
+                ),
+                std::make_unique<juce::AudioParameterFloat> (
+                    "target4", // parameterID
+                    "Target 4", // parameter name
+                    0.0, 1.0, 0.0
+                ),
+            
+                std::make_unique<juce::AudioParameterInt> (
+                    "firstCCNumber", // parameterID
+                    "First CC number", // parameter name
+                    1,
+                    127,
+                    1
+                ),
+                std::make_unique<juce::AudioParameterInt> (
+                    "channelNumber", // parameterID
+                    "Channel", // parameter name
+                    1,
+                    16,
+                    1
+                ),
+            } )
 #endif
 {
     tempoBpm = 120.0;
     lastBufferTimestamp = 0;
     
-    // Note this plugin allows phrase length 1 beat for "real time" control.
-    // (The clip variation plugins start at 4 beats.)
-    addParameter (phraseBeats = new juce::AudioParameterChoice (
-        "phraseBeats", // parameterID
-        "Phrase length", // parameter name
-        juce::StringArray( {"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"} ),
-        2 // default index
-    ));
+    // Assuming it's ok to just cast these to specific param type.
+    phraseBeats = (juce::AudioParameterChoice*)parameters.getParameter("phraseBeats");
+    firstCCNumber = (juce::AudioParameterInt*)parameters.getParameter("firstCCNumber");
+    channelNumber = (juce::AudioParameterInt*)parameters.getParameter("channelNumber");
 
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + 1;
 
         std::ostringstream paramIdentifier;
         paramIdentifier << "target" << controllerNumber;
-        std::ostringstream paramName;
-        paramName << "Target " << controllerNumber;
+//        std::ostringstream paramName;
+//        paramName << "Target " << controllerNumber;
 
         currentValue[i] = 0;
         lastOutputCC[i] = 0;
-        addParameter (destinationValue[i] = new juce::AudioParameterFloat (
-            paramIdentifier.str(), // parameterID
-            paramName.str(), // parameter name
-            0.0,
-            1.0,
-            0.0
-        ));
+//        parameters.createAndAddParameter(
+//            std::make_unique<juce::AudioParameterInt> (
+//                 paramIdentifier.str(), // parameterID
+//                 paramName.str(), // parameter name
+//                 0.0,
+//                 1.0,
+//                 0.0
+//            )
+//        );
+        destinationValue[i] = (juce::AudioParameterFloat*)parameters.getParameter(paramIdentifier.str());
     }
-
-    addParameter (firstCCNumber = new juce::AudioParameterInt (
-        "firstCC", // parameterID
-        "First CC number", // parameter name
-        1,
-        127,
-        1
-    ));
-    addParameter (channelNumber = new juce::AudioParameterInt (
-        "channelNumber", // parameterID
-        "Channel", // parameter name
-        1,
-        16,
-        1
-    ));
 }
 
 double MIDIControllerMotionAudioProcessor::getPhraseBeats ()
