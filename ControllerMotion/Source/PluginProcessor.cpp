@@ -83,20 +83,9 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
 
         std::ostringstream paramIdentifier;
         paramIdentifier << "target" << controllerNumber;
-//        std::ostringstream paramName;
-//        paramName << "Target " << controllerNumber;
 
         currentValue[i] = 0;
         lastOutputCC[i] = 0;
-//        parameters.createAndAddParameter(
-//            std::make_unique<juce::AudioParameterInt> (
-//                 paramIdentifier.str(), // parameterID
-//                 paramName.str(), // parameter name
-//                 0.0,
-//                 1.0,
-//                 0.0
-//            )
-//        );
         destinationValue[i] = (juce::AudioParameterFloat*)parameters.getParameter(paramIdentifier.str());
     }
 }
