@@ -67,7 +67,45 @@ MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
                     16,
                     1
                 ),
-            } )
+
+                // Config parameters for outputing phrase position and length.
+                // This allows showing phrase info in LED displays or VU meters etc.
+
+                // Output phrase position % over the range 1-127.
+                // Specify CC=0 to disable.
+                 std::make_unique<juce::AudioParameterInt> (
+                    "outPhrasePosCCNumber", 
+                    "CC out - Phrase position",
+                    0,
+                    127,
+                    0
+                ),
+                std::make_unique<juce::AudioParameterInt> (
+                    "outPhrasePosChannel", 
+                    "Ch out - Phrase position", 
+                    1,
+                    16,
+                    16
+                ),
+                // Output phrase length in as a CC value.
+                // TBD how this value is encoded - targeting a 7-LED VU meter on Traktor Kontrol S4.
+                // Specify CC=0 to disable.
+                 std::make_unique<juce::AudioParameterInt> (
+                    "outPhraseLengthCCNumber", 
+                    "CC out - Phrase length",
+                    0,
+                    127,
+                    0
+                ),
+                std::make_unique<juce::AudioParameterInt> (
+                    "outPhraseLengthChannel", 
+                    "Ch out - Phrase length", 
+                    1,
+                    16,
+                    16
+                ),
+
+           } )
 #endif
 {
     tempoBpm = 120.0;
@@ -271,6 +309,10 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
     double blockPhraseTime = beatsToPhrase(
         blockTimeBeats
     );
+
+    if (isPlaying) {
+        outputPhraseInfoAsCCs(currentPhrasePosition, midiMessages);
+    }
     
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + *firstCCNumber;
@@ -309,6 +351,51 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
     }
     
     lastBufferTimestamp = playheadTimeSamples;
+}
+
+void MIDIControllerMotionAudioProcessor::outputPhraseInfoAsCCs (double position, juce::MidiBuffer& midiMessages)
+{
+    juce::AudioParameterInt* ccNumber;
+    juce::AudioParameterInt* channel;
+    int cc, ch;
+
+    // Phrase position.
+    ccNumber = (juce::AudioParameterInt*)parameters.getParameter("outPhrasePosCCNumber");
+    channel = (juce::AudioParameterInt*)parameters.getParameter("outPhrasePosChannel");
+    cc = ccNumber->get();
+    ch = channel->get();
+    if ( cc ) {
+        midiMessages.addEvent(
+            juce::MidiMessage::controllerEvent(
+                ch,
+                cc,
+                juce::MidiMessage::floatValueToMidiByte(position)
+            ),
+            0
+        );
+    }
+
+    // Phrase length.
+    int selected = phraseBeats->getIndex(); // Option index, 0-5.
+    const int ledCount = 7; // Full LED range is 0-7.
+    const double ccPerLed = 127.0 / ledCount;
+    int ccValue = selected * ccPerLed;
+    ccNumber = (juce::AudioParameterInt*)parameters.getParameter("outPhraseLengthCCNumber");
+    channel = (juce::AudioParameterInt*)parameters.getParameter("outPhraseLengthChannel");
+    cc = ccNumber->get();
+    ch = channel->get();
+    if ( cc ) {
+        midiMessages.addEvent(
+            juce::MidiMessage::controllerEvent(
+                ch,
+                cc,
+                ccValue
+            ),
+            0
+        );
+    }
+
+
 }
 
 //==============================================================================

@@ -64,6 +64,7 @@ private:
     double samplesToBeats (juce::int64 timestamp);
     double beatsToPhrase (double beats);
     bool timeRangeStraddlesPhraseChange (juce::int64 time1, juce::int64 time2);
+    void outputPhraseInfoAsCCs (double position, juce::MidiBuffer& midiMessages);
 
     int getSemitonesPerVariation ();
     double getPhraseBeats ();
