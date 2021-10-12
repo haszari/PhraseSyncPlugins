@@ -310,9 +310,7 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
         blockTimeBeats
     );
 
-    if (isPlaying) {
-        outputPhraseInfoAsCCs(currentPhrasePosition, midiMessages);
-    }
+    outputPhraseInfoAsCCs(currentPhrasePosition, isPlaying, midiMessages);
     
     for (int i=0; i<CBR_CCMOTION_NUM_PARAMS; i++) {
         int controllerNumber = i + *firstCCNumber;
@@ -353,7 +351,7 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
     lastBufferTimestamp = playheadTimeSamples;
 }
 
-void MIDIControllerMotionAudioProcessor::outputPhraseInfoAsCCs (double position, juce::MidiBuffer& midiMessages)
+void MIDIControllerMotionAudioProcessor::outputPhraseInfoAsCCs (double position, bool isPlaying, juce::MidiBuffer& midiMessages)
 {
     juce::AudioParameterInt* ccNumber;
     juce::AudioParameterInt* channel;
@@ -364,7 +362,7 @@ void MIDIControllerMotionAudioProcessor::outputPhraseInfoAsCCs (double position,
     channel = (juce::AudioParameterInt*)parameters.getParameter("outPhrasePosChannel");
     cc = ccNumber->get();
     ch = channel->get();
-    if ( cc ) {
+    if ( isPlaying && cc ) {
         midiMessages.addEvent(
             juce::MidiMessage::controllerEvent(
                 ch,
