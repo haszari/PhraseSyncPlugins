@@ -10,19 +10,18 @@
 
 #include <JuceHeader.h>
 
-// These parameters are now hard coded in the constructor initialiser list.
-// If this constant is changed, need to add/remove `target` params accordingly.
-#define CBR_CCMOTION_NUM_PARAMS 4
+// Hard-coded 12 lines for now - one octave of sampler slots
+#define CBR_TOGGLELINES_NUM_LINES 12
 
 //==============================================================================
 /**
 */
-class MIDIControllerMotionAudioProcessor  : public juce::AudioProcessor
+class LineTogglerAudioProcessor  : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    MIDIControllerMotionAudioProcessor();
-    ~MIDIControllerMotionAudioProcessor() override;
+    LineTogglerAudioProcessor();
+    ~LineTogglerAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -59,28 +58,12 @@ public:
 
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MIDIControllerMotionAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LineTogglerAudioProcessor)
     
-    double samplesToBeats (juce::int64 timestamp);
-    double beatsToPhrase (double beats);
-    bool timeRangeStraddlesPhraseChange (juce::int64 time1, juce::int64 time2);
-    void outputPhraseInfoAsCCs (double position, bool isPlaying, juce::MidiBuffer& midiMessages);
-
-    int getSemitonesPerVariation ();
-    double getPhraseBeats ();
-
-    juce::AudioParameterFloat *destinationValue[CBR_CCMOTION_NUM_PARAMS];
-    double currentValue[CBR_CCMOTION_NUM_PARAMS];
-    int lastOutputCC[CBR_CCMOTION_NUM_PARAMS];
-
     juce::AudioProcessorValueTreeState parameters;
     
-    juce::AudioParameterChoice* phraseBeats;
-    juce::AudioParameterInt* firstCCNumber;
-    juce::AudioParameterInt* channelNumber;
-
-    double tempoBpm;
-    juce::int64 lastBufferTimestamp;
+    // Store a direct pointer to each param for convenience.
+    juce::AudioParameterBool *allowLinePlayback[CBR_TOGGLELINES_NUM_LINES] ;
 
     juce::MidiBuffer outputMidiBuffer;
 };
