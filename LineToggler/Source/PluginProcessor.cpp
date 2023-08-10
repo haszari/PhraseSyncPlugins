@@ -8,6 +8,8 @@
 
 #include "PluginProcessor.h"
 
+const int LineTogglerAudioProcessor::notesPerLine[] = { 2, 2, 4, 4 };
+
 //==============================================================================
 LineTogglerAudioProcessor::LineTogglerAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -42,46 +44,6 @@ LineTogglerAudioProcessor::LineTogglerAudioProcessor()
                 "Enable line 4", // parameter name
                 true
             ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable5", // parameterID
-                "Enable line 5", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable6", // parameterID
-                "Enable line 6", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable7", // parameterID
-                "Enable line 7", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable8", // parameterID
-                "Enable line 8", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable9", // parameterID
-                "Enable line 9", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable10", // parameterID
-                "Enable line 10", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable11", // parameterID
-                "Enable line 11", // parameter name
-                true
-            ),
-            std::make_unique<juce::AudioParameterBool> (
-                "lineEnable12", // parameterID
-                "Enable line 12", // parameter name
-                true
-            ),
 
             } )
 #endif
@@ -91,7 +53,7 @@ LineTogglerAudioProcessor::LineTogglerAudioProcessor()
 
         std::ostringstream paramIdentifier;
         paramIdentifier << "lineEnable" << lineNumber;
-        
+
         allowLinePlayback[i] = (juce::AudioParameterBool*)parameters.getParameter(paramIdentifier.str());
     }
 
@@ -202,46 +164,61 @@ bool LineTogglerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 }
 #endif
 
+/**
+ * Determine the slot index for a given MIDI note.
+ *
+ * @param midiNoteNumber The MIDI note number to check.
+ * @return The slot index for the note, or -1 if the note is not in a slot.
+*/
+int LineTogglerAudioProcessor::getSlotIndexForNote(const int midiNoteNumber) {
+    int slotStartNote = CBR_TOGGLELINES_FIRST_MIDI_NOTE;
+
+    // Iterate over each line, and check if the note is in the line's range.
+    for (int i = 0; i < CBR_TOGGLELINES_NUM_LINES; i++)
+    {
+        int nextSlotStart = slotStartNote + notesPerLine[i];
+        if ( midiNoteNumber >= slotStartNote && midiNoteNumber < nextSlotStart ) {
+            return  i;
+        }
+        slotStartNote = nextSlotStart;
+    }
+
+    // Not in a slot!
+    return -1;
+}
+
 void LineTogglerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     outputMidiBuffer.clear();
 
-    const int firstLineNote = 36;
-    
     // Copy everything to outputMidiBuffer EXCEPT:
     // - note ons for each line (C1 … B2)
     for (auto midiMessageIt = midiMessages.begin(); midiMessageIt != midiMessages.end(); ++midiMessageIt) {
         const juce::MidiMessageMetadata metadata = *midiMessageIt;
         const juce::MidiMessage m = metadata.getMessage();
-        
+
         // Pass all non-note-on events through. We only filter note ons.
         if (! m.isNoteOn() ) {
             outputMidiBuffer.addEvent(m, metadata.samplePosition);
             continue;
         }
-        
+
         const int noteNumber = m.getNoteNumber();
-        const int slotIndex = noteNumber - firstLineNote;
-        
-        // Pass notes below the line range.
+        const int slotIndex = this->getSlotIndexForNote(noteNumber);
+
+        // Pass notes that aren't in the slot range.
         if ( slotIndex < 0 ) {
             outputMidiBuffer.addEvent(m, metadata.samplePosition);
             continue;
         }
-        // Pass notes above the line range.
-        if ( slotIndex > CBR_TOGGLELINES_NUM_LINES ) {
-            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-            continue;
-        }
-            
+
         // If we get to here, the current event is a note-on for a sampler line.
-        // We might mute it if the param is disabled.
-        
+        // If the allow param is disabled, we'll discard the event (mute the note).
         if ( allowLinePlayback[slotIndex]->get() ) {
             outputMidiBuffer.addEvent(m, metadata.samplePosition);
         }
     }
-    
+
     midiMessages.swapWith(outputMidiBuffer);
 }
 
