@@ -60,12 +60,18 @@ public:
 
 private:
     int getSlotIndexForNote(const int midiNoteNumber);
+    int getSlotIndexForControlNote(const int midiNoteNumber);
 
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LineTogglerAudioProcessor)
 
     static const int notesPerLine[CBR_TOGGLELINES_NUM_LINES];
+    // MIDI note value for control note for each line - e.g. C-2 up.
+    static const int lineControlNotes[CBR_TOGGLELINES_NUM_LINES];
+
+    // State of each line - true = gate open / is playing.
+    bool lineGate[CBR_TOGGLELINES_NUM_LINES];
 
     juce::AudioProcessorValueTreeState parameters;
 

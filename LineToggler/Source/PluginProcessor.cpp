@@ -10,6 +10,9 @@
 
 const int LineTogglerAudioProcessor::notesPerLine[] = { 2, 2, 4, 4 };
 
+// 2 octaves below first line note (36). In future might shift to MIDI zero.
+const int LineTogglerAudioProcessor::lineControlNotes[] = { 12, 13, 14, 15 };
+
 //==============================================================================
 LineTogglerAudioProcessor::LineTogglerAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -55,6 +58,8 @@ LineTogglerAudioProcessor::LineTogglerAudioProcessor()
         paramIdentifier << "lineEnable" << lineNumber;
 
         allowLinePlayback[i] = (juce::AudioParameterBool*)parameters.getParameter(paramIdentifier.str());
+
+        lineGate[i] = true;
     }
 
 }
@@ -165,7 +170,7 @@ bool LineTogglerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 #endif
 
 /**
- * Determine the slot index for a given MIDI note.
+ * Determine if a MIDI note is a synth note for a line.
  *
  * @param midiNoteNumber The MIDI note number to check.
  * @return The slot index for the note, or -1 if the note is not in a slot.
@@ -187,37 +192,117 @@ int LineTogglerAudioProcessor::getSlotIndexForNote(const int midiNoteNumber) {
     return -1;
 }
 
+/**
+ * Determine if a MIDI note is a control note for a line.
+ *
+ * @param midiNoteNumber The MIDI note number to check.
+ * @return The slot index that the note controls, or -1.
+*/
+int LineTogglerAudioProcessor::getSlotIndexForControlNote(const int midiNoteNumber) {
+    for (int i = 0; i < CBR_TOGGLELINES_NUM_LINES; i++)
+    {
+        if ( midiNoteNumber == lineControlNotes[i] ) {
+            return  i;
+        }
+    }
+
+    return -1;
+}
+
+const juce::MidiMessageMetadata* findNoteOnEvent(
+    juce::MidiBuffer& midiMessages,
+    int afterTimestamp,
+    int midiNoteValue
+) {
+
+    for (const juce::MidiMessageMetadata metadata : midiMessages) {
+       const juce:: MidiMessage event = metadata.getMessage();
+        if (event.isNoteOn()) {
+            if (event.getNoteNumber() == midiNoteValue &&
+                metadata.samplePosition >= afterTimestamp) {
+
+                // THIS IS A POINTER – we should avoid this and use a reference or a copy. (Compile warning)
+                return &metadata;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 void LineTogglerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     outputMidiBuffer.clear();
 
-    // Copy everything to outputMidiBuffer EXCEPT:
-    // - note ons for each line (C1 … B2)
-    for (auto midiMessageIt = midiMessages.begin(); midiMessageIt != midiMessages.end(); ++midiMessageIt) {
-        const juce::MidiMessageMetadata metadata = *midiMessageIt;
-        const juce::MidiMessage m = metadata.getMessage();
+    // TODO: Check transport state, if not playing back then disable all gates / let everything though.
+    // TODO: Pass through all unrelated MIDI events (not control notes or notes in lines).
 
-        // Pass all non-note-on events through. We only filter note ons.
-        if (! m.isNoteOn() ) {
-            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-            continue;
-        }
+    // Loop over each slot / line.
+    for (int slotIndex = 0; slotIndex < CBR_TOGGLELINES_NUM_LINES; slotIndex++) {
+        const int bufferEndTime = buffer.getNumSamples();
+        int processStartTime = 0, processEndTime = buffer.getNumSamples();
+        int controlNoteSearchStart = 0;
+        bool nextGateState = lineGate[slotIndex];
 
-        const int noteNumber = m.getNoteNumber();
-        const int slotIndex = this->getSlotIndexForNote(noteNumber);
+        // Iterate through the buffer one control note at a time.
+        while ( processStartTime < bufferEndTime ) {
+            // Search for next control note change for the current slot.
+            const juce::MidiMessageMetadata* controlNoteOn = findNoteOnEvent(midiMessages, controlNoteSearchStart, lineControlNotes[slotIndex]);
 
-        // Pass notes that aren't in the slot range.
-        if ( slotIndex < 0 ) {
-            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-            continue;
-        }
+            // We found a control note:
+            // - Adjust time range to before the note takes effect.
+            // - Stash the toggle param value to apply it for next iteration.
+            if (controlNoteOn != nullptr) {
+                processEndTime = controlNoteOn->samplePosition - 1;
+                controlNoteSearchStart++;
+                nextGateState = allowLinePlayback[slotIndex]->get();
+            }
+            else {
+                processEndTime = buffer.getNumSamples();
+            }
 
-        // If we get to here, the current event is a note-on for a sampler line.
-        // If the allow param is disabled, we'll discard the event (mute the note).
-        if ( allowLinePlayback[slotIndex]->get() ) {
-            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-        }
-    }
+            // Now we have a time range to process - processStartTime…processEndTime.
+            // We have at least two tasks for this time period:
+            // 1. Apply the current line gate - let notes through or not.
+            // 2. If param changes gate state in this period, apply the change at the end.
+            // 3. (bonus) Gate ALL control note events (on and off) so they don't play synth notes. Could do this manually but cleaner to do within the plugin automatically.
+
+            // Loop over all events.
+            for (auto midiMessageIt = midiMessages.begin(); midiMessageIt != midiMessages.end(); ++midiMessageIt) {
+
+                const juce::MidiMessageMetadata metadata = *midiMessageIt;
+                const juce::MidiMessage m = metadata.getMessage();
+
+                // Skip events not in our time period of interest.
+                if ( metadata.samplePosition < processStartTime ||
+                    metadata.samplePosition > processEndTime ) {
+                    continue;
+                }
+
+                // Find out what kind of event this is.
+                const int noteNumber = m.getNoteNumber();
+                const int eventSlotIndex = this->getSlotIndexForNote(noteNumber); // It's a note in a line.
+                const bool isNoteOn = m.isNoteOn();
+
+                // Is this event in a line? If so, appropriately gate it.
+                if ( eventSlotIndex != -1 ) {
+                    if ( eventSlotIndex == slotIndex ) {
+                        if ( isNoteOn && lineGate[slotIndex] ) {
+                            outputMidiBuffer.addEvent(m, metadata.samplePosition);
+                        }
+                        else if ( ! isNoteOn ) {
+                            outputMidiBuffer.addEvent(m, metadata.samplePosition);
+                        }
+                    }
+
+                }
+            } // End loop over all events.
+
+            // Now we've processed all the events up to processEndTime, iterate.
+            lineGate[slotIndex] = nextGateState;
+            processStartTime = processEndTime;
+        } // End while loop for each control note for the current slot.
+    } // End loop over each slot / line.
 
     midiMessages.swapWith(outputMidiBuffer);
 }
